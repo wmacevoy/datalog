@@ -1,7 +1,7 @@
 # QJSON Datalog
 
 A fact language for humans, robots, and agents.  Precise. Load-bearing.
-Four verbs, one trigger, one distributor, two freezes.
+Four verbs, one trigger, one distributor, one freeze.
 
 ## Facts
 
@@ -53,17 +53,9 @@ assert each {
 
   {grandparent: ?GP, grandchild: ?GC} in is_grandparent
     where {parent: ?GP, child: ?P} in is_parent
-      and {parent: ?P, child: ?GC} in is_parent,
-
-  {ancestor: ?A, descendant: ?D} in is_ancestor
-    where {parent: ?A, child: ?D} in is_parent,
-  {ancestor: ?A, descendant: ?D} in is_ancestor
-    where {parent: ?A, child: ?M} in is_parent
-      and {ancestor: ?M, descendant: ?D} in is_ancestor
+      and {parent: ?P, child: ?GC} in is_parent
 }
 ```
-
-Facts, rules, multiple predicates — one block.
 
 ## Queries
 
@@ -105,31 +97,46 @@ retract {patient: "alice", time: ?Old} in is_reading
   where ?Old < 1710000000N
 ```
 
-Bulk:
-
-```
-retract each {
-  {time: 1000N},
-  {time: 2000N}
-} in is_reading
-```
-
 ## Freeze
 
+`freeze` makes things immutable.  As a modifier on `assert`, it's
+a const declaration — born frozen, never mutable.  As a standalone
+verb, it freezes existing predicates.
+
 ```
-mineralize(is_high)      // freeze one rule into immutable facts
-fossilize                 // freeze everything
+// Const declaration — assert and freeze in one step
+assert freeze {patient: ?P, glucose: ?G, level: "critical"} in is_high
+  where {patient: ?P, glucose: ?G} in is_reading
+    and ?G > 250M
+
+// Const bulk — entire ruleset born frozen
+assert freeze each {
+  {patient: ?P, glucose: ?G, level: "critical"} in is_high
+    where {patient: ?P, glucose: ?G} in is_reading
+      and ?G > 250M,
+
+  {patient: ?P, glucose: ?G, level: "critical"} in is_low
+    where {patient: ?P, glucose: ?G} in is_reading
+      and ?G < 70M
+}
+
+// Freeze existing predicates
+freeze is_high
+freeze each { is_high, is_low, is_over_max_iob }
+freeze                              // freeze everything
 ```
 
-Signals still flow through frozen rules.
+Signals still flow through frozen rules.  The rules can't
+change, but the brain still reacts.
 
 ## The whole language
 
 ```
 assert VALUE in PREDICATE                         fact
 assert VALUE in PREDICATE where REASON            rule
-assert each AGGREGATE in PREDICATE                bulk facts (shared predicate)
-assert each { V in P where R, V in P, ... }       program (mixed predicates)
+assert each AGGREGATE in PREDICATE                bulk facts
+assert each { V in P, V in P where R, ... }       program
+assert freeze ...                                  const (any of the above)
 
 when signal PATTERN in PRED where COND:           trigger
   assert|retract|signal actions
@@ -141,13 +148,14 @@ when retract PATTERN in PRED where COND:
 signal VALUE in PREDICATE                         transient in/out
 retract PATTERN in PREDICATE where COND           forget
 select PATTERN in PREDICATE                       query
-mineralize(PREDICATE)                             freeze one
-fossilize                                         freeze all
+freeze PREDICATE                                  freeze existing
+freeze each { PRED, PRED, ... }                   freeze several
+freeze                                            freeze all
 ```
 
 Four verbs: `assert`, `retract`, `signal`, `select`.
 One trigger: `when`.  One distributor: `each`.
-Two freezes: `mineralize`, `fossilize`.
+One freeze: `freeze` (modifier or verb).
 One relation operator: `in`.
 One data format: QJSON.
 
@@ -171,10 +179,14 @@ Signals out:   signal {...} in alert → host handles it
 ## Example: insulin pump monitor
 
 ```
+// Configuration (mutable — can be updated)
 assert each {
   {patient: "alice", max_iob: 5.0M, target: {low: 80M, high: 120M}} in has_config,
-  {sensor: "pump_1"} in is_trusted,
+  {sensor: "pump_1"} in is_trusted
+}
 
+// Alert rules (const — born frozen, auditable)
+assert freeze each {
   {patient: ?P, glucose: ?G, level: "critical"} in is_high
     where {patient: ?P, glucose: ?G} in is_reading
       and ?G > 250M,
@@ -189,10 +201,7 @@ assert each {
       and ?IOB > ?MAX
 }
 
-mineralize(is_high)
-mineralize(is_low)
-mineralize(is_over_max_iob)
-
+// Nervous system
 when signal {sensor: ?S, patient: ?P, glucose: ?G, iob: ?IOB, time: ?T} in pump_reading
   where {sensor: ?S} in is_trusted:
   retract {patient: ?P} in is_reading
@@ -204,8 +213,10 @@ when assert {patient: ?P, glucose: ?G} in is_reading
      or {patient: ?P} in is_over_max_iob:
   signal {patient: ?P, glucose: ?G, level: "critical"} in alert
 
+// Life
 signal {sensor: "pump_1", patient: "alice", glucose: 280M, iob: 3.2M, time: 1710000600N} in pump_reading
 ```
 
 A nurse reads the rules.  An agent writes them.  An auditor
-verifies the frozen facts.  The pump stays safe.
+sees `assert freeze` and knows: these rules are const.
+The pump stays safe.

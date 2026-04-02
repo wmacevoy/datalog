@@ -1,22 +1,10 @@
 // Vending machine
 
-// Brain
-assert each {
+// Products and fault rules (const)
+assert freeze each {
   {slot: "a1", name: "cola", price: 125N} in is_product,
   {slot: "a2", name: "water", price: 75N} in is_product,
   {slot: "b1", name: "chips", price: 150N} in is_product,
-
-  {value: 0N} in has_credit,
-
-  {slot: "a1", stock: 8N} in has_inventory,
-  {slot: "a2", stock: 5N} in has_inventory,
-  {slot: "b1", stock: 3N} in has_inventory,
-
-  {state: "idle"} in has_machine_state,
-
-  {type: "tilt", value: "ok"} in has_sensor,
-  {type: "door", value: "closed"} in has_sensor,
-  {type: "temp", value: "normal"} in has_sensor,
 
   {type: "tilt_detected"} in is_fault
     where {type: "tilt", value: "tilted"} in has_sensor,
@@ -32,6 +20,18 @@ assert each {
       and {slot: ?Slot, stock: ?Stock} in has_inventory
       and ?Stock > 0N
       and not {type: ?} in is_fault
+}
+
+// Initial state (mutable)
+assert each {
+  {value: 0N} in has_credit,
+  {slot: "a1", stock: 8N} in has_inventory,
+  {slot: "a2", stock: 5N} in has_inventory,
+  {slot: "b1", stock: 3N} in has_inventory,
+  {state: "idle"} in has_machine_state,
+  {type: "tilt", value: "ok"} in has_sensor,
+  {type: "door", value: "closed"} in has_sensor,
+  {type: "temp", value: "normal"} in has_sensor
 }
 
 // Nervous system

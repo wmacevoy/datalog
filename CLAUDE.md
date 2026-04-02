@@ -6,7 +6,7 @@ QJSON Datalog — a fact language for humans, robots, and agents.
 
 Four verbs: `assert`, `retract`, `signal`, `select`.
 One trigger: `when`.  One distributor: `each`.
-Two freezes: `mineralize`, `fossilize`.
+One freeze: `freeze` (modifier or verb).
 One relation operator: `in`.
 One data format: QJSON (exact decimals, big integers, blobs, variables).
 
@@ -76,8 +76,8 @@ fossilize                                     freeze all
 **when**: react to `signal`, `assert`, `retract` — the nervous system.
 **each**: distribute an aggregate — `assert each {A, B} in P` = assert A, assert B.
 **in**: the relationship operator — "this fact is in this predicate."
-**mineralize**: freeze a rule into immutable facts — compile-time safety.
-**fossilize**: freeze everything — snapshot the brain.
+**freeze**: make immutable.  `assert freeze` = const declaration (born frozen).
+`freeze P` = freeze existing.  `freeze` = freeze everything.
 
 ## Embedding
 
@@ -96,7 +96,7 @@ The host watches for outbound signals and acts.
 **C files**: C11, arena-allocated, no global mutable state.
 **QJSON values**: exact — `0.1M + 0.2M = 0.3M`.
 **Keywords**: `assert`, `retract`, `signal`, `select`, `when`, `each`,
-`in`, `where`, `and`, `or`, `not`, `mineralize`, `fossilize` are reserved.
+`in`, `where`, `and`, `or`, `not`, `freeze` are reserved.
 
 ## License
 

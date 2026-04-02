@@ -1,10 +1,13 @@
 // Insulin pump monitor
 
-// Brain
+// Configuration (mutable)
 assert each {
   {patient: "alice", max_iob: 5.0M, target: {low: 80M, high: 120M}} in has_config,
-  {sensor: "pump_1"} in is_trusted,
+  {sensor: "pump_1"} in is_trusted
+}
 
+// Alert rules (const — born frozen, auditable)
+assert freeze each {
   {patient: ?P, glucose: ?G, level: "critical"} in is_high
     where {patient: ?P, glucose: ?G} in is_reading
       and ?G > 250M,
@@ -18,11 +21,6 @@ assert each {
       and {patient: ?P, max_iob: ?MAX} in has_config
       and ?IOB > ?MAX
 }
-
-// Freeze rules — immutable audit trail
-mineralize(is_high)
-mineralize(is_low)
-mineralize(is_over_max_iob)
 
 // Nervous system
 when signal {sensor: ?S, patient: ?P, glucose: ?G, iob: ?IOB, time: ?T} in pump_reading

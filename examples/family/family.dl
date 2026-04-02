@@ -12,8 +12,11 @@ assert each {
   {person: "frank"} in is_male,
   {person: "alice"} in is_female,
   {person: "carol"} in is_female,
-  {person: "eve"} in is_female,
+  {person: "eve"} in is_female
+}
 
+// Rules
+assert each {
   {grandparent: ?GP, grandchild: ?GC} in is_grandparent
     where {parent: ?GP, child: ?P} in is_parent
       and {parent: ?P, child: ?GC} in is_parent,
@@ -35,6 +38,7 @@ assert each {
       and {ancestor: ?M, descendant: ?D} in is_ancestor
 }
 
+// Queries
 select {grandparent: "alice", grandchild: ?GC} in is_grandparent
 select {ancestor: "alice", descendant: ?D} in is_ancestor
 select {uncle: ?U, niece_nephew: "frank"} in is_uncle
