@@ -1,21 +1,21 @@
 // Insulin pump monitor — signals, triggers, alerts
 
 // Configuration
-config: {patient: alice, max_iob: 5.0M, target: {low: 80M, high: 120M}}.
-is_trusted: {sensor: pump_1}.
+has_config: {patient: "alice", max_iob: 5.0M, target: {low: 80M, high: 120M}}.
+is_trusted: {sensor: "pump_1"}.
 
 // Alert rules
-is_high: {patient: ?P, glucose: ?G, level: critical}
-  where is_reading: {patient: ?P, glucose: ?G}
+is_high: {patient: ?P, glucose: ?G, level: "critical"}
+  where {patient: ?P, glucose: ?G} in is_reading
     and ?G > 250M.
 
-is_low: {patient: ?P, glucose: ?G, level: critical}
-  where is_reading: {patient: ?P, glucose: ?G}
+is_low: {patient: ?P, glucose: ?G, level: "critical"}
+  where {patient: ?P, glucose: ?G} in is_reading
     and ?G < 70M.
 
 is_over_max_iob: {patient: ?P, iob: ?IOB, max: ?MAX}
-  where is_reading: {patient: ?P, iob: ?IOB}
-    and config: {patient: ?P, max_iob: ?MAX}
+  where {patient: ?P, iob: ?IOB} in is_reading
+    and {patient: ?P, max_iob: ?MAX} in has_config
     and ?IOB > ?MAX.
 
 // Freeze rules — immutable audit trail
@@ -25,25 +25,25 @@ mineralize(is_over_max_iob)
 
 // Nervous system
 when signal pump_reading: {sensor: ?S, patient: ?P, glucose: ?G, iob: ?IOB, time: ?T}
-  where is_trusted: {sensor: ?S}:
+  where {sensor: ?S} in is_trusted:
   retract is_reading: {patient: ?P}
   assert is_reading: {patient: ?P, glucose: ?G, iob: ?IOB, time: ?T}
 
 when assert is_reading: {patient: ?P, glucose: ?G}
-  where is_high: {patient: ?P}
-    or is_low: {patient: ?P}
-    or is_over_max_iob: {patient: ?P}:
-  signal alert: {patient: ?P, glucose: ?G, level: critical}
+  where {patient: ?P} in is_high
+     or {patient: ?P} in is_low
+     or {patient: ?P} in is_over_max_iob:
+  signal alert: {patient: ?P, glucose: ?G, level: "critical"}
 
 // Audit — every mutation logged
 when assert ?F:
-  signal log: {event: assert, fact: ?F}
+  signal log: {event: "assert", fact: ?F}
 
 when retract ?F:
-  signal log: {event: retract, fact: ?F}
+  signal log: {event: "retract", fact: ?F}
 
 // Life
-signal pump_reading: {sensor: pump_1, patient: alice, glucose: 142M, iob: 2.1M, time: 1710000000N}
-signal pump_reading: {sensor: pump_1, patient: alice, glucose: 280M, iob: 3.2M, time: 1710000300N}
-// → is_high matches → signal alert: {patient: alice, glucose: 280M, level: critical}
+signal pump_reading: {sensor: "pump_1", patient: "alice", glucose: 142M, iob: 2.1M, time: 1710000000N}
+signal pump_reading: {sensor: "pump_1", patient: "alice", glucose: 280M, iob: 3.2M, time: 1710000300N}
+// → is_high matches → signal alert: {patient: "alice", glucose: 280M, level: "critical"}
 // → host sends SMS, updates dashboard

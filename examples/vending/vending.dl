@@ -1,79 +1,79 @@
 // Vending machine — state, events, cascading reactions
 
 // Products
-is_product: {slot: a1, name: cola, price: 125N}.
-is_product: {slot: a2, name: water, price: 75N}.
-is_product: {slot: b1, name: chips, price: 150N}.
+is_product: {slot: "a1", name: "cola", price: 125N}.
+is_product: {slot: "a2", name: "water", price: 75N}.
+is_product: {slot: "b1", name: "chips", price: 150N}.
 
 // State
-is_credit: {value: 0N}.
-is_inventory: {slot: a1, stock: 8N}.
-is_inventory: {slot: a2, stock: 5N}.
-is_inventory: {slot: b1, stock: 3N}.
-is_machine_state: {state: idle}.
+has_credit: {value: 0N}.
+has_inventory: {slot: "a1", stock: 8N}.
+has_inventory: {slot: "a2", stock: 5N}.
+has_inventory: {slot: "b1", stock: 3N}.
+has_machine_state: {state: "idle"}.
 
 // Sensors
-is_sensor: {type: tilt, value: ok}.
-is_sensor: {type: door, value: closed}.
-is_sensor: {type: temp, value: normal}.
+has_sensor: {type: "tilt", value: "ok"}.
+has_sensor: {type: "door", value: "closed"}.
+has_sensor: {type: "temp", value: "normal"}.
 
 // Fault detection (rules)
-is_fault: {type: tilt_detected}
-  where is_sensor: {type: tilt, value: tilted}.
-is_fault: {type: door_open}
-  where is_sensor: {type: door, value: open}.
-is_fault: {type: overheated}
-  where is_sensor: {type: temp, value: hot}.
+is_fault: {type: "tilt_detected"}
+  where {type: "tilt", value: "tilted"} in has_sensor.
+is_fault: {type: "door_open"}
+  where {type: "door", value: "open"} in has_sensor.
+is_fault: {type: "overheated"}
+  where {type: "temp", value: "hot"} in has_sensor.
 
 // Can vend?
 is_vendable: {slot: ?Slot, name: ?Name, price: ?Price}
-  where is_product: {slot: ?Slot, name: ?Name, price: ?Price}
-    and is_credit: {value: ?Credit}
+  where {slot: ?Slot, name: ?Name, price: ?Price} in is_product
+    and {value: ?Credit} in has_credit
     and ?Credit >= ?Price
-    and is_inventory: {slot: ?Slot, stock: ?Stock}
-    and ?Stock > 0
-    and not is_fault: {type: ?}.
+    and {slot: ?Slot, stock: ?Stock} in has_inventory
+    and ?Stock > 0N
+    and not {type: ?} in is_fault.
 
 // Coin inserted
 when signal coin_event: {amount: ?Amount}
-  where is_credit: {value: ?Old}
+  where {value: ?Old} in has_credit
     and ?New = ?Old + ?Amount:
-  retract is_credit: {value: ?Old}
-  assert is_credit: {value: ?New}
+  retract has_credit: {value: ?Old}
+  assert has_credit: {value: ?New}
   signal credit_updated: {old: ?Old, new: ?New}
 
-// Selection
+// Selection — success
 when signal select_event: {slot: ?Slot}
-  where is_vendable: {slot: ?Slot, name: ?Name, price: ?Price}
-    and is_credit: {value: ?Credit}
+  where {slot: ?Slot, name: ?Name, price: ?Price} in is_vendable
+    and {value: ?Credit} in has_credit
     and ?NewCredit = ?Credit - ?Price
-    and is_inventory: {slot: ?Slot, stock: ?Stock}
+    and {slot: ?Slot, stock: ?Stock} in has_inventory
     and ?NewStock = ?Stock - 1N:
-  retract is_credit: {value: ?Credit}
-  assert is_credit: {value: ?NewCredit}
-  retract is_inventory: {slot: ?Slot, stock: ?Stock}
-  assert is_inventory: {slot: ?Slot, stock: ?NewStock}
+  retract has_credit: {value: ?Credit}
+  assert has_credit: {value: ?NewCredit}
+  retract has_inventory: {slot: ?Slot, stock: ?Stock}
+  assert has_inventory: {slot: ?Slot, stock: ?NewStock}
   signal dispense: {product: ?Name, slot: ?Slot}
   signal change: {amount: ?NewCredit}
 
-// Selection denied
+// Selection — denied
 when signal select_event: {slot: ?Slot}
-  where not is_vendable: {slot: ?Slot}:
+  where not {slot: ?Slot} in is_vendable:
   signal denied: {slot: ?Slot, reason: "insufficient credit or out of stock"}
 
 // Sensor update
 when signal sensor_update: {type: ?Type, value: ?Val}:
-  retract is_sensor: {type: ?Type}
-  assert is_sensor: {type: ?Type, value: ?Val}
+  retract has_sensor: {type: ?Type}
+  assert has_sensor: {type: ?Type, value: ?Val}
 
 // Fault detected → lock machine
 when assert is_fault: {type: ?F}:
-  retract is_machine_state: {state: ?}
-  assert is_machine_state: {state: locked}
+  retract has_machine_state: {state: ?}
+  assert has_machine_state: {state: "locked"}
   signal fault_alert: {type: ?F}
 
 // Life
 signal coin_event: {amount: 100N}
 signal coin_event: {amount: 50N}
-signal select_event: {slot: a1}
+signal select_event: {slot: "a1"}
 // → credit: 150 → vendable: cola (125) → dispense cola → change: 25

@@ -9,33 +9,34 @@ A fact is a named QJSON object followed by a period.  The period
 means "this is true."
 
 ```
-is_parent: {parent: alice, child: bob}.
-is_parent: {parent: bob, child: carol}.
-is_parent: {parent: carol, child: dave}.
-is_reading: {patient: alice, glucose: 142M, time: 1710000000N}.
+is_parent: {parent: "alice", child: "bob"}.
+is_parent: {parent: "bob", child: "carol"}.
+is_parent: {parent: "carol", child: "dave"}.
+is_reading: {patient: "alice", glucose: 142M, time: 1710000000N}.
 ```
 
 Bulk:
 
 ```
 facts:
-  is_parent: {parent: alice, child: bob}
-  is_parent: {parent: bob, child: carol}
-  is_parent: {parent: carol, child: dave}
+  is_parent: {parent: "alice", child: "bob"}
+  is_parent: {parent: "bob", child: "carol"}
+  is_parent: {parent: "carol", child: "dave"}
 ```
 
-Values are QJSON: `M` for exact decimal, `N` for big integer, `L` for
-big float, `0j` for blobs, `?X` for variables.  Valid JSON is valid QJSON.
+String values are quoted.  Bare words before `:` are predicate names
+or object keys.  `?X` is a variable.  `M` `N` `L` are exact numeric
+suffixes.  No ambiguity between predicates and values.
 
 ## Rules
 
 A rule is a fact with a `where` clause.  It derives new facts from
-existing ones.  It's in the database like everything else.
+existing ones.  Predicate references appear after `in`.
 
 ```
 is_grandparent: {grandparent: ?GP, grandchild: ?GC}
-  where is_parent: {parent: ?GP, child: ?P}
-    and is_parent: {parent: ?P, child: ?GC}.
+  where {parent: ?GP, child: ?P} in is_parent
+    and {parent: ?P, child: ?GC} in is_parent.
 ```
 
 `?P` appears in both patterns — that's a join.  The engine figures it out.
@@ -45,7 +46,7 @@ base-2 automatically:
 
 ```
 has_total: {name: ?N, total: ?T}
-  where has_item: {name: ?N, unit_price: ?U, qty: ?Q}
+  where {name: ?N, unit_price: ?U, qty: ?Q} in has_item
     and ?T = ?U * ?Q.
 ```
 
@@ -55,15 +56,15 @@ Boolean conditions: `and`, `or`, `not`, parentheses.
 
 ```
 is_eligible: {patient: ?P}
-  where is_patient: {name: ?P, age: ?A}
+  where {name: ?P, age: ?A} in is_patient
     and ?A >= 18
-    and not is_excluded: {patient: ?P}.
+    and not {patient: ?P} in is_excluded.
 ```
 
 ## Queries
 
 ```
-select is_grandparent: {grandparent: ?GP, grandchild: carol}
+select is_grandparent: {grandparent: ?GP, grandchild: "carol"}
 ```
 
 Put concrete values in the pattern to filter.  Variables return
@@ -75,7 +76,7 @@ A signal is a transient fact.  It enters the brain, triggers
 reactions, and is never stored.
 
 ```
-signal pump_reading: {patient: alice, glucose: 280M, time: 1710000600N}
+signal pump_reading: {patient: "alice", glucose: 280M, time: 1710000600N}
 ```
 
 Signals are both input and output.  They come from the world
@@ -97,7 +98,7 @@ A `where` clause adds conditions and computation:
 
 ```
 when signal pump_reading: {patient: ?P, glucose: ?G, time: ?T}
-  where is_reading: {patient: ?P, time: ?Old}
+  where {patient: ?P, time: ?Old} in is_reading
     and ?Old < ?T:
   retract is_reading: {patient: ?P, time: ?Old}
   assert is_reading: {patient: ?P, glucose: ?G, time: ?T}
@@ -115,7 +116,7 @@ when signal pump_reading: {patient: ?P, glucose: ?G, time: ?T}:
 // Reading stored → check thresholds
 when assert is_reading: {patient: ?P, glucose: ?G}
   where ?G > 250M:
-  signal alert: {patient: ?P, glucose: ?G, level: critical}
+  signal alert: {patient: ?P, glucose: ?G, level: "critical"}
 
 // Alert → the host handles it (SMS, LED, React component, log)
 ```
@@ -128,7 +129,7 @@ host watches for outbound signals and acts.  That's the embedding.
 Forget a fact.  Pattern matching selects what to remove.
 
 ```
-retract is_reading: {patient: alice, time: ?Old}
+retract is_reading: {patient: "alice", time: ?Old}
   where ?Old < 1710000000N
 ```
 
@@ -140,7 +141,7 @@ Freeze a rule into concrete facts.  Evaluate the view, replace
 the definition with its results.  Immutable.  Auditable.
 
 ```
-mineralize(is_alert_rule)
+mineralize(is_high)
 ```
 
 Before: a live rule that re-evaluates.  After: frozen facts
@@ -163,31 +164,32 @@ change, but the brain still reacts.  The skull protects the brain.
 
 ```
 // Database (facts + rules, all just assertions)
-name: {pattern}.                              fact
-name: {pattern} where condition.              rule
-facts:                                        bulk facts
+name: {data}.                                     fact
+name: {pattern} where {p} in pred and cond.       rule
+facts:                                            bulk facts
   name: {data}
   name: {data}
 
 // Triggers (the nervous system)
-when signal pattern where condition:          on transient input
+when signal pattern where condition:              on transient input
   assert|retract|signal action
-when assert pattern where condition:          on fact added
+when assert pattern where condition:              on fact added
   assert|retract|signal action
-when retract pattern where condition:         on fact removed
+when retract pattern where condition:             on fact removed
   assert|retract|signal action
 
 // Operations
-signal name: {data}                           transient in/out
-retract name: {pattern} where condition       forget
-select name: {pattern}                        query
-mineralize(name)                              freeze one
-fossilize                                     freeze all
+signal name: {data}                               transient in/out
+retract name: {pattern} where condition            forget
+select name: {pattern}                             query
+mineralize(name)                                   freeze one
+fossilize                                          freeze all
 ```
 
 Five verbs: assert (`.`), retract, signal, select, when.
 Two freezes: mineralize, fossilize.
 One data format: QJSON (exact decimals, big integers, blobs, variables).
+String values always quoted.  Predicate names after `in` or before `:`.
 
 ## Embedding
 
@@ -205,7 +207,7 @@ The host is whatever runs the brain:
 | Host | Signals in | Signals out |
 |------|-----------|-------------|
 | Browser (WASM) | fetch → signal | signal → setState |
-| CLI (qjq) | stdin → signal | signal → stdout |
+| CLI | stdin → signal | signal → stdout |
 | Embedded (C) | GPIO → signal | signal → GPIO |
 | Server (Python) | HTTP → signal | signal → response |
 
@@ -216,20 +218,21 @@ nerve.  The language is the same everywhere.
 
 ```
 // Configuration (facts)
-config: {patient: alice, max_iob: 5.0M, target: {low: 80M, high: 120M}}.
+has_config: {patient: "alice", max_iob: 5.0M, target: {low: 80M, high: 120M}}.
+is_trusted: {sensor: "pump_1"}.
 
 // Alert rules (freeze after validation)
-is_high: {patient: ?P, glucose: ?G, level: critical}
-  where is_reading: {patient: ?P, glucose: ?G}
+is_high: {patient: ?P, glucose: ?G, level: "critical"}
+  where {patient: ?P, glucose: ?G} in is_reading
     and ?G > 250M.
 
-is_low: {patient: ?P, glucose: ?G, level: critical}
-  where is_reading: {patient: ?P, glucose: ?G}
+is_low: {patient: ?P, glucose: ?G, level: "critical"}
+  where {patient: ?P, glucose: ?G} in is_reading
     and ?G < 70M.
 
 is_over_max_iob: {patient: ?P, iob: ?IOB, max: ?MAX}
-  where is_reading: {patient: ?P, iob: ?IOB}
-    and config: {patient: ?P, max_iob: ?MAX}
+  where {patient: ?P, iob: ?IOB} in is_reading
+    and {patient: ?P, max_iob: ?MAX} in has_config
     and ?IOB > ?MAX.
 
 // Freeze the rules — immutable, auditable
@@ -238,17 +241,18 @@ mineralize(is_low)
 mineralize(is_over_max_iob)
 
 // Nervous system (triggers)
-when signal pump_reading: {patient: ?P, glucose: ?G, iob: ?IOB, time: ?T}:
+when signal pump_reading: {sensor: ?S, patient: ?P, glucose: ?G, iob: ?IOB, time: ?T}
+  where {sensor: ?S} in is_trusted:
   assert is_reading: {patient: ?P, glucose: ?G, iob: ?IOB, time: ?T}
 
 when assert is_reading: {patient: ?P, glucose: ?G}
-  where is_high: {patient: ?P}
-    or is_low: {patient: ?P}
-    or is_over_max_iob: {patient: ?P}:
-  signal alert: {patient: ?P, glucose: ?G, level: critical}
+  where {patient: ?P} in is_high
+     or {patient: ?P} in is_low
+     or {patient: ?P} in is_over_max_iob:
+  signal alert: {patient: ?P, glucose: ?G, level: "critical"}
 
 // Life
-signal pump_reading: {patient: alice, glucose: 280M, iob: 3.2M, time: 1710000600N}
+signal pump_reading: {sensor: "pump_1", patient: "alice", glucose: 280M, iob: 3.2M, time: 1710000600N}
 // → assert is_reading
 // → is_high matches (280M > 250M)
 // → signal alert
