@@ -4,13 +4,14 @@
 
 QJSON Datalog — a fact language for humans, robots, and agents.
 
-Five verbs: assert (`.`), retract, signal, select, when.
-Two freezes: mineralize, fossilize.
+Four verbs: `assert`, `retract`, `signal`, `select`.
+One trigger: `when`.  One distributor: `each`.
+Two freezes: `mineralize`, `fossilize`.
+One relation operator: `in`.
 One data format: QJSON (exact decimals, big integers, blobs, variables).
 
-Facts are the database.  Rules derive from facts.  Signals are transient.
-Triggers react to state changes.  The brain doesn't know about the outside
-world — the host provides the body, `signal` is the nerve.
+`:` is only inside QJSON objects (key maps to value).
+`in` is the relationship operator (fact is in predicate).
 
 ## Architecture
 
@@ -44,34 +45,39 @@ make              # libdatalog.a + datalog_ext.so (SQLite extension)
 ## The language
 
 ```
-// Facts (the database)
-name: {pattern}.                              assert
-name: {pattern} where condition.              rule
+// Facts and rules (all just assert)
+assert VALUE in PREDICATE                     one fact
+assert each AGGREGATE in PREDICATE            distribute
+assert PATTERN in PREDICATE where CONDITION   rule
 
 // Triggers (the nervous system)
-when signal pattern where condition:          on transient input
-  assert|retract|signal action
-when assert pattern where condition:          on fact added
-  assert|retract|signal action
-when retract pattern where condition:         on fact removed
-  assert|retract|signal action
+when signal PATTERN in PRED where COND:       on transient input
+  assert|retract|signal actions
+when assert PATTERN in PRED where COND:       on fact added
+  assert|retract|signal actions
+when retract PATTERN in PRED where COND:      on fact removed
+  assert|retract|signal actions
 
 // Operations
-signal name: {data}                           transient in/out
-retract name: {pattern} where condition       forget
-select name: {pattern}                        query
-mineralize(name)                              freeze one
+signal VALUE in PREDICATE                     transient in/out
+retract PATTERN in PREDICATE                  forget
+retract each AGGREGATE in PREDICATE           bulk forget
+select PATTERN in PREDICATE                   query
+mineralize(PREDICATE)                         freeze one
 fossilize                                     freeze all
 ```
 
 ## Key concepts
 
-**Facts**: named QJSON objects followed by `.` — "this is true."
-**Rules**: facts with `where` clauses — derived, always live.
-**Signals**: transient facts — enter, trigger reactions, never stored.
-**When**: reacts to `signal`, `assert`, `retract` — the nervous system.
-**Mineralize**: freeze a rule into immutable facts — compile-time safety.
-**Fossilize**: freeze everything — snapshot the brain.
+**assert**: put a fact in a predicate. With `where`, it's a rule.
+**retract**: remove matching facts from a predicate.
+**signal**: transient fact — triggers reactions, never stored.
+**select**: query — pattern match against facts and derived rules.
+**when**: react to `signal`, `assert`, `retract` — the nervous system.
+**each**: distribute an aggregate — `assert each {A, B} in P` = assert A, assert B.
+**in**: the relationship operator — "this fact is in this predicate."
+**mineralize**: freeze a rule into immutable facts — compile-time safety.
+**fossilize**: freeze everything — snapshot the brain.
 
 ## Embedding
 
@@ -89,8 +95,8 @@ The host watches for outbound signals and acts.
 
 **C files**: C11, arena-allocated, no global mutable state.
 **QJSON values**: exact — `0.1M + 0.2M = 0.3M`.
-**Keywords**: `where`, `and`, `or`, `not`, `in`, `when`, `signal`,
-`select`, `retract`, `assert`, `mineralize`, `fossilize` are reserved.
+**Keywords**: `assert`, `retract`, `signal`, `select`, `when`, `each`,
+`in`, `where`, `and`, `or`, `not`, `mineralize`, `fossilize` are reserved.
 
 ## License
 

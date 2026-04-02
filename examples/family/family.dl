@@ -1,46 +1,53 @@
 // Family tree — facts, rules, queries
 
 // Facts
-is_parent: {parent: "alice", child: "bob"}.
-is_parent: {parent: "alice", child: "carol"}.
-is_parent: {parent: "bob", child: "dave"}.
-is_parent: {parent: "bob", child: "eve"}.
-is_parent: {parent: "carol", child: "frank"}.
+assert each {
+  {parent: "alice", child: "bob"},
+  {parent: "alice", child: "carol"},
+  {parent: "bob", child: "dave"},
+  {parent: "bob", child: "eve"},
+  {parent: "carol", child: "frank"}
+} in is_parent
 
-is_male: {person: "bob"}.
-is_male: {person: "dave"}.
-is_male: {person: "frank"}.
-is_female: {person: "alice"}.
-is_female: {person: "carol"}.
-is_female: {person: "eve"}.
+assert each {
+  {person: "bob"},
+  {person: "dave"},
+  {person: "frank"}
+} in is_male
+
+assert each {
+  {person: "alice"},
+  {person: "carol"},
+  {person: "eve"}
+} in is_female
 
 // Rules
-is_grandparent: {grandparent: ?GP, grandchild: ?GC}
+assert {grandparent: ?GP, grandchild: ?GC} in is_grandparent
   where {parent: ?GP, child: ?P} in is_parent
-    and {parent: ?P, child: ?GC} in is_parent.
+    and {parent: ?P, child: ?GC} in is_parent
 
-is_sibling: {a: ?A, b: ?B}
+assert {a: ?A, b: ?B} in is_sibling
   where {parent: ?P, child: ?A} in is_parent
     and {parent: ?P, child: ?B} in is_parent
-    and not ?A = ?B.
+    and not ?A = ?B
 
-is_uncle: {uncle: ?U, niece_nephew: ?N}
+assert {uncle: ?U, niece_nephew: ?N} in is_uncle
   where {a: ?U, b: ?P} in is_sibling
     and {person: ?U} in is_male
-    and {parent: ?P, child: ?N} in is_parent.
+    and {parent: ?P, child: ?N} in is_parent
 
-is_ancestor: {ancestor: ?A, descendant: ?D}
-  where {parent: ?A, child: ?D} in is_parent.
-is_ancestor: {ancestor: ?A, descendant: ?D}
+assert {ancestor: ?A, descendant: ?D} in is_ancestor
+  where {parent: ?A, child: ?D} in is_parent
+assert {ancestor: ?A, descendant: ?D} in is_ancestor
   where {parent: ?A, child: ?M} in is_parent
-    and {ancestor: ?M, descendant: ?D} in is_ancestor.
+    and {ancestor: ?M, descendant: ?D} in is_ancestor
 
 // Queries
-select is_grandparent: {grandparent: "alice", grandchild: ?GC}
+select {grandparent: "alice", grandchild: ?GC} in is_grandparent
 // → "dave", "eve", "frank"
 
-select is_ancestor: {ancestor: "alice", descendant: ?D}
+select {ancestor: "alice", descendant: ?D} in is_ancestor
 // → "bob", "carol", "dave", "eve", "frank"
 
-select is_uncle: {uncle: ?U, niece_nephew: "frank"}
+select {uncle: ?U, niece_nephew: "frank"} in is_uncle
 // → "bob"

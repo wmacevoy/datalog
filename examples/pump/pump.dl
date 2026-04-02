@@ -1,22 +1,22 @@
 // Insulin pump monitor — signals, triggers, alerts
 
 // Configuration
-has_config: {patient: "alice", max_iob: 5.0M, target: {low: 80M, high: 120M}}.
-is_trusted: {sensor: "pump_1"}.
+assert {patient: "alice", max_iob: 5.0M, target: {low: 80M, high: 120M}} in has_config
+assert {sensor: "pump_1"} in is_trusted
 
 // Alert rules
-is_high: {patient: ?P, glucose: ?G, level: "critical"}
+assert {patient: ?P, glucose: ?G, level: "critical"} in is_high
   where {patient: ?P, glucose: ?G} in is_reading
-    and ?G > 250M.
+    and ?G > 250M
 
-is_low: {patient: ?P, glucose: ?G, level: "critical"}
+assert {patient: ?P, glucose: ?G, level: "critical"} in is_low
   where {patient: ?P, glucose: ?G} in is_reading
-    and ?G < 70M.
+    and ?G < 70M
 
-is_over_max_iob: {patient: ?P, iob: ?IOB, max: ?MAX}
+assert {patient: ?P, iob: ?IOB, max: ?MAX} in is_over_max_iob
   where {patient: ?P, iob: ?IOB} in is_reading
     and {patient: ?P, max_iob: ?MAX} in has_config
-    and ?IOB > ?MAX.
+    and ?IOB > ?MAX
 
 // Freeze rules — immutable audit trail
 mineralize(is_high)
@@ -24,26 +24,25 @@ mineralize(is_low)
 mineralize(is_over_max_iob)
 
 // Nervous system
-when signal pump_reading: {sensor: ?S, patient: ?P, glucose: ?G, iob: ?IOB, time: ?T}
+when signal {sensor: ?S, patient: ?P, glucose: ?G, iob: ?IOB, time: ?T} in pump_reading
   where {sensor: ?S} in is_trusted:
-  retract is_reading: {patient: ?P}
-  assert is_reading: {patient: ?P, glucose: ?G, iob: ?IOB, time: ?T}
+  retract {patient: ?P} in is_reading
+  assert {patient: ?P, glucose: ?G, iob: ?IOB, time: ?T} in is_reading
 
-when assert is_reading: {patient: ?P, glucose: ?G}
+when assert {patient: ?P, glucose: ?G} in is_reading
   where {patient: ?P} in is_high
      or {patient: ?P} in is_low
      or {patient: ?P} in is_over_max_iob:
-  signal alert: {patient: ?P, glucose: ?G, level: "critical"}
+  signal {patient: ?P, glucose: ?G, level: "critical"} in alert
 
-// Audit — every mutation logged
-when assert ?F:
-  signal log: {event: "assert", fact: ?F}
+// Audit
+when assert ?F in ?P:
+  signal {event: "assert", predicate: ?P, fact: ?F} in log
 
-when retract ?F:
-  signal log: {event: "retract", fact: ?F}
+when retract ?F in ?P:
+  signal {event: "retract", predicate: ?P, fact: ?F} in log
 
 // Life
-signal pump_reading: {sensor: "pump_1", patient: "alice", glucose: 142M, iob: 2.1M, time: 1710000000N}
-signal pump_reading: {sensor: "pump_1", patient: "alice", glucose: 280M, iob: 3.2M, time: 1710000300N}
-// → is_high matches → signal alert: {patient: "alice", glucose: 280M, level: "critical"}
-// → host sends SMS, updates dashboard
+signal {sensor: "pump_1", patient: "alice", glucose: 142M, iob: 2.1M, time: 1710000000N} in pump_reading
+signal {sensor: "pump_1", patient: "alice", glucose: 280M, iob: 3.2M, time: 1710000300N} in pump_reading
+// → is_high matches → signal in alert → host handles it
