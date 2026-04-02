@@ -1,0 +1,3 @@
+[submodule "vendor/qjson"]
+	path = vendor/qjson
+	url = https://github.com/wmacevoy/qjson.git

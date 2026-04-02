@@ -1,0 +1,46 @@
+// Family tree — facts, rules, queries
+
+// Facts
+is_parent: {parent: alice, child: bob}.
+is_parent: {parent: alice, child: carol}.
+is_parent: {parent: bob, child: dave}.
+is_parent: {parent: bob, child: eve}.
+is_parent: {parent: carol, child: frank}.
+
+is_male: {person: bob}.
+is_male: {person: dave}.
+is_male: {person: frank}.
+is_female: {person: alice}.
+is_female: {person: carol}.
+is_female: {person: eve}.
+
+// Rules
+is_grandparent: {grandparent: ?GP, grandchild: ?GC}
+  where is_parent: {parent: ?GP, child: ?P}
+    and is_parent: {parent: ?P, child: ?GC}.
+
+is_sibling: {a: ?A, b: ?B}
+  where is_parent: {parent: ?P, child: ?A}
+    and is_parent: {parent: ?P, child: ?B}
+    and not ?A = ?B.
+
+is_uncle: {uncle: ?U, niece_nephew: ?N}
+  where is_sibling: {a: ?U, b: ?P}
+    and is_male: {person: ?U}
+    and is_parent: {parent: ?P, child: ?N}.
+
+is_ancestor: {ancestor: ?A, descendant: ?D}
+  where is_parent: {parent: ?A, child: ?D}.
+is_ancestor: {ancestor: ?A, descendant: ?D}
+  where is_parent: {parent: ?A, child: ?M}
+    and is_ancestor: {ancestor: ?M, descendant: ?D}.
+
+// Queries
+select is_grandparent: {grandparent: alice, grandchild: ?GC}
+// → dave, eve, frank
+
+select is_ancestor: {ancestor: alice, descendant: ?D}
+// → bob, carol, dave, eve, frank
+
+select is_uncle: {uncle: ?U, niece_nephew: frank}
+// → bob
