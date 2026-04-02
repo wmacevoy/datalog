@@ -1,22 +1,23 @@
-// Insulin pump monitor — signals, triggers, alerts
+// Insulin pump monitor
 
-// Configuration
-assert {patient: "alice", max_iob: 5.0M, target: {low: 80M, high: 120M}} in has_config
-assert {sensor: "pump_1"} in is_trusted
+// Brain
+assert each {
+  {patient: "alice", max_iob: 5.0M, target: {low: 80M, high: 120M}} in has_config,
+  {sensor: "pump_1"} in is_trusted,
 
-// Alert rules
-assert {patient: ?P, glucose: ?G, level: "critical"} in is_high
-  where {patient: ?P, glucose: ?G} in is_reading
-    and ?G > 250M
+  {patient: ?P, glucose: ?G, level: "critical"} in is_high
+    where {patient: ?P, glucose: ?G} in is_reading
+      and ?G > 250M,
 
-assert {patient: ?P, glucose: ?G, level: "critical"} in is_low
-  where {patient: ?P, glucose: ?G} in is_reading
-    and ?G < 70M
+  {patient: ?P, glucose: ?G, level: "critical"} in is_low
+    where {patient: ?P, glucose: ?G} in is_reading
+      and ?G < 70M,
 
-assert {patient: ?P, iob: ?IOB, max: ?MAX} in is_over_max_iob
-  where {patient: ?P, iob: ?IOB} in is_reading
-    and {patient: ?P, max_iob: ?MAX} in has_config
-    and ?IOB > ?MAX
+  {patient: ?P, iob: ?IOB, max: ?MAX} in is_over_max_iob
+    where {patient: ?P, iob: ?IOB} in is_reading
+      and {patient: ?P, max_iob: ?MAX} in has_config
+      and ?IOB > ?MAX
+}
 
 // Freeze rules — immutable audit trail
 mineralize(is_high)
@@ -45,4 +46,3 @@ when retract ?F in ?P:
 // Life
 signal {sensor: "pump_1", patient: "alice", glucose: 142M, iob: 2.1M, time: 1710000000N} in pump_reading
 signal {sensor: "pump_1", patient: "alice", glucose: 280M, iob: 3.2M, time: 1710000300N} in pump_reading
-// → is_high matches → signal in alert → host handles it

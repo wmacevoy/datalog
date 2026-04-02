@@ -1,53 +1,40 @@
-// Family tree — facts, rules, queries
-
-// Facts
-assert each {
-  {parent: "alice", child: "bob"},
-  {parent: "alice", child: "carol"},
-  {parent: "bob", child: "dave"},
-  {parent: "bob", child: "eve"},
-  {parent: "carol", child: "frank"}
-} in is_parent
+// Family tree
 
 assert each {
-  {person: "bob"},
-  {person: "dave"},
-  {person: "frank"}
-} in is_male
+  {parent: "alice", child: "bob"} in is_parent,
+  {parent: "alice", child: "carol"} in is_parent,
+  {parent: "bob", child: "dave"} in is_parent,
+  {parent: "bob", child: "eve"} in is_parent,
+  {parent: "carol", child: "frank"} in is_parent,
 
-assert each {
-  {person: "alice"},
-  {person: "carol"},
-  {person: "eve"}
-} in is_female
+  {person: "bob"} in is_male,
+  {person: "dave"} in is_male,
+  {person: "frank"} in is_male,
+  {person: "alice"} in is_female,
+  {person: "carol"} in is_female,
+  {person: "eve"} in is_female,
 
-// Rules
-assert {grandparent: ?GP, grandchild: ?GC} in is_grandparent
-  where {parent: ?GP, child: ?P} in is_parent
-    and {parent: ?P, child: ?GC} in is_parent
+  {grandparent: ?GP, grandchild: ?GC} in is_grandparent
+    where {parent: ?GP, child: ?P} in is_parent
+      and {parent: ?P, child: ?GC} in is_parent,
 
-assert {a: ?A, b: ?B} in is_sibling
-  where {parent: ?P, child: ?A} in is_parent
-    and {parent: ?P, child: ?B} in is_parent
-    and not ?A = ?B
+  {a: ?A, b: ?B} in is_sibling
+    where {parent: ?P, child: ?A} in is_parent
+      and {parent: ?P, child: ?B} in is_parent
+      and not ?A = ?B,
 
-assert {uncle: ?U, niece_nephew: ?N} in is_uncle
-  where {a: ?U, b: ?P} in is_sibling
-    and {person: ?U} in is_male
-    and {parent: ?P, child: ?N} in is_parent
+  {uncle: ?U, niece_nephew: ?N} in is_uncle
+    where {a: ?U, b: ?P} in is_sibling
+      and {person: ?U} in is_male
+      and {parent: ?P, child: ?N} in is_parent,
 
-assert {ancestor: ?A, descendant: ?D} in is_ancestor
-  where {parent: ?A, child: ?D} in is_parent
-assert {ancestor: ?A, descendant: ?D} in is_ancestor
-  where {parent: ?A, child: ?M} in is_parent
-    and {ancestor: ?M, descendant: ?D} in is_ancestor
+  {ancestor: ?A, descendant: ?D} in is_ancestor
+    where {parent: ?A, child: ?D} in is_parent,
+  {ancestor: ?A, descendant: ?D} in is_ancestor
+    where {parent: ?A, child: ?M} in is_parent
+      and {ancestor: ?M, descendant: ?D} in is_ancestor
+}
 
-// Queries
 select {grandparent: "alice", grandchild: ?GC} in is_grandparent
-// → "dave", "eve", "frank"
-
 select {ancestor: "alice", descendant: ?D} in is_ancestor
-// → "bob", "carol", "dave", "eve", "frank"
-
 select {uncle: ?U, niece_nephew: "frank"} in is_uncle
-// → "bob"
